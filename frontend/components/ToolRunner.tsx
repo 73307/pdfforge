@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { ToolDef, ToolField } from "@/lib/tools";
-import { processRequest } from "@/lib/api";
+import { uploadWithProgress } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 import { setResult } from "@/lib/resultStore";
 import { Dropzone } from "./Dropzone";
@@ -23,6 +23,8 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
   const [values, setValues] = React.useState<Record<string, string>>(() => initialValues(tool));
   const [status, setStatus] = React.useState<Status>("idle");
   const [error, setError] = React.useState("");
+  const [progress, setProgress] = React.useState(0);
+  const [phase, setPhase] = React.useState<"upload" | "process">("upload");
 
   function addFiles(incoming: File[]) {
     setError("");
@@ -49,6 +51,8 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
     setValues(initialValues(tool));
     setStatus("idle");
     setError("");
+    setProgress(0);
+    setPhase("upload");
   }
 
   async function run() {
@@ -74,8 +78,13 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
     }
 
     setStatus("working");
+    setProgress(0);
+    setPhase("upload");
     try {
-      const { blob, filename, headers } = await processRequest(tool.endpoint, form);
+      const { blob, filename, headers } = await uploadWithProgress(tool.endpoint, form, (pct) => {
+        setProgress(pct);
+        if (pct >= 100) setPhase("process");
+      });
       const name = filename || tool.resultName;
 
       let note = "";
@@ -179,7 +188,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
           className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-6 py-2.5 font-semibold text-white shadow-md transition hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {status === "working" && <Spinner className="h-5 w-5" />}
-          {status === "working" ? "Processing…" : tool.name}
+          {status === "working" ? (phase === "upload" ? "Uploading…" : "Processing…") : tool.name}
         </button>
         {(files.length > 0 || status === "error") && (
           <button
@@ -194,6 +203,24 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
       </div>
 
       <div aria-live="polite" className="mt-4">
+        {status === "working" && (
+          <div className="mb-1">
+            <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-500">
+              <span>{phase === "upload" ? "Uploading your file…" : "Processing…"}</span>
+              {phase === "upload" && <span>{progress}%</span>}
+            </div>
+            <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-violet-100">
+              {phase === "upload" ? (
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 transition-all duration-150"
+                  style={{ width: `${progress}%` }}
+                />
+              ) : (
+                <div className="animate-indeterminate inset-y-0 w-1/3 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500" />
+              )}
+            </div>
+          </div>
+        )}
         {status === "error" && (
           <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
             <Alert className="mt-0.5 h-4 w-4 shrink-0" />

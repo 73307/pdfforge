@@ -9,30 +9,67 @@ export interface ProcessResult {
   headers: Headers;
 }
 
-export async function processRequest(endpoint: string, form: FormData): Promise<ProcessResult> {
-  let res: Response;
-  try {
-    res = await fetch(`${BASE}${endpoint}`, { method: "POST", body: form });
-  } catch {
-    throw new Error("Could not reach the server. Check your connection and try again.");
-  }
-
-  if (!res.ok) {
-    let message = "Something went wrong. Please try again.";
-    try {
-      const data = await res.json();
-      if (data?.error?.message) message = data.error.message;
-    } catch {
-      /* non-JSON error body: keep the generic message */
-    }
-    throw new Error(message);
-  }
-
-  const blob = await res.blob();
-  const disposition = res.headers.get("content-disposition") ?? "";
+function filenameFrom(disposition: string): string {
   const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
-  const filename = match ? decodeURIComponent(match[1]) : "download";
-  return { blob, filename, headers: res.headers };
+  return match ? decodeURIComponent(match[1]) : "download";
+}
+
+/**
+ * Upload via XMLHttpRequest so we can report REAL upload progress (fetch can't).
+ * `onProgress` receives the upload percentage 0–100; it reaches 100 once the whole
+ * file has been sent and the server starts processing.
+ */
+export function uploadWithProgress(
+  endpoint: string,
+  form: FormData,
+  onProgress: (percent: number) => void,
+): Promise<ProcessResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE}${endpoint}`);
+    xhr.responseType = "blob";
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+    };
+    xhr.upload.onload = () => onProgress(100);
+
+    xhr.onload = () => {
+      const blob = xhr.response as Blob;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const headers = new Headers();
+        for (const h of ["content-disposition", "x-original-bytes", "x-compressed-bytes", "x-reduced"]) {
+          const v = xhr.getResponseHeader(h);
+          if (v) headers.set(h, v);
+        }
+        resolve({
+          blob,
+          filename: filenameFrom(xhr.getResponseHeader("content-disposition") ?? ""),
+          headers,
+        });
+        return;
+      }
+      // Error: the body is a JSON blob with { error: { message } }.
+      blob
+        .text()
+        .then((t) => {
+          let message = "Something went wrong. Please try again.";
+          try {
+            const data = JSON.parse(t);
+            if (data?.error?.message) message = data.error.message;
+          } catch {
+            /* keep generic */
+          }
+          reject(new Error(message));
+        })
+        .catch(() => reject(new Error("Something went wrong. Please try again.")));
+    };
+
+    xhr.onerror = () =>
+      reject(new Error("Could not reach the server. Check your connection and try again."));
+
+    xhr.send(form);
+  });
 }
 
 export function triggerDownload(blob: Blob, filename: string): void {
