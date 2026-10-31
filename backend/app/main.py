@@ -47,7 +47,12 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
-    expose_headers=["X-Original-Bytes", "X-Compressed-Bytes", "X-Reduced"],
+    expose_headers=[
+        "Content-Disposition",
+        "X-Original-Bytes",
+        "X-Compressed-Bytes",
+        "X-Reduced",
+    ],
     max_age=600,
 )
 app.add_middleware(SecurityHeadersMiddleware)

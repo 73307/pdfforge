@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import type { ToolDef, ToolField } from "@/lib/tools";
-import { processRequest, triggerDownload } from "@/lib/api";
+import { processRequest } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
+import { setResult } from "@/lib/resultStore";
 import { Dropzone } from "./Dropzone";
-import { ArrowDown, ArrowUp, Check, Alert, Spinner, Trash, Download } from "./icons";
+import { ArrowDown, ArrowUp, Alert, Spinner, Trash } from "./icons";
 
-type Status = "idle" | "working" | "done" | "error";
+type Status = "idle" | "working" | "error";
 
 function initialValues(tool: ToolDef): Record<string, string> {
   const v: Record<string, string> = {};
@@ -16,12 +18,11 @@ function initialValues(tool: ToolDef): Record<string, string> {
 }
 
 export function ToolRunner({ tool }: { tool: ToolDef }) {
+  const router = useRouter();
   const [files, setFiles] = React.useState<File[]>([]);
   const [values, setValues] = React.useState<Record<string, string>>(() => initialValues(tool));
   const [status, setStatus] = React.useState<Status>("idle");
   const [error, setError] = React.useState("");
-  const [note, setNote] = React.useState("");
-  const resultRef = React.useRef<{ blob: Blob; name: string } | null>(null);
 
   function addFiles(incoming: File[]) {
     setError("");
@@ -48,13 +49,10 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
     setValues(initialValues(tool));
     setStatus("idle");
     setError("");
-    setNote("");
-    resultRef.current = null;
   }
 
   async function run() {
     setError("");
-    setNote("");
 
     if (files.length < tool.minFiles) {
       setError(`Please add at least ${tool.minFiles} file${tool.minFiles > 1 ? "s" : ""}.`);
@@ -79,22 +77,29 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
     try {
       const { blob, filename, headers } = await processRequest(tool.endpoint, form);
       const name = filename || tool.resultName;
-      resultRef.current = { blob, name };
-      triggerDownload(blob, name);
 
+      let note = "";
       if (tool.slug === "compress-pdf") {
         const reduced = headers.get("X-Reduced") === "1";
         const orig = Number(headers.get("X-Original-Bytes"));
         const comp = Number(headers.get("X-Compressed-Bytes"));
-        setNote(
+        note =
           reduced && orig > 0
             ? `Reduced from ${formatBytes(orig)} to ${formatBytes(comp)} (−${Math.round(
                 (1 - comp / orig) * 100,
               )}%).`
-            : "This PDF was already well optimized, so we returned the original unchanged.",
-        );
+            : "This PDF was already well optimized, so we returned the original unchanged.";
       }
-      setStatus("done");
+
+      setResult({
+        blob,
+        filename: name,
+        type: blob.type || "application/octet-stream",
+        toolName: tool.name,
+        toolSlug: tool.slug,
+        note,
+      });
+      router.push("/preview");
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
@@ -115,7 +120,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
               className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
             >
               <span className="min-w-0 flex-1 truncate">{file.name}</span>
-              <span className="shrink-0 text-xs text-[var(--muted)]">{formatBytes(file.size)}</span>
+              <span className="shrink-0 text-xs text-slate-400">{formatBytes(file.size)}</span>
               {tool.reorderable && files.length > 1 && (
                 <span className="flex shrink-0 gap-1">
                   <button
@@ -123,7 +128,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
                     aria-label="Move up"
                     disabled={i === 0 || disabled}
                     onClick={() => move(i, -1)}
-                    className="rounded-md p-1 hover:bg-brand-50 disabled:opacity-30 dark:hover:bg-brand-900/40"
+                    className="rounded-md p-1 hover:bg-violet-50 disabled:opacity-30"
                   >
                     <ArrowUp className="h-4 w-4" />
                   </button>
@@ -132,7 +137,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
                     aria-label="Move down"
                     disabled={i === files.length - 1 || disabled}
                     onClick={() => move(i, 1)}
-                    className="rounded-md p-1 hover:bg-brand-50 disabled:opacity-30 dark:hover:bg-brand-900/40"
+                    className="rounded-md p-1 hover:bg-violet-50 disabled:opacity-30"
                   >
                     <ArrowDown className="h-4 w-4" />
                   </button>
@@ -143,7 +148,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
                 aria-label={`Remove ${file.name}`}
                 disabled={disabled}
                 onClick={() => removeAt(i)}
-                className="shrink-0 rounded-md p-1 text-red-500 hover:bg-red-50 disabled:opacity-30 dark:hover:bg-red-900/30"
+                className="shrink-0 rounded-md p-1 text-rose-500 hover:bg-rose-50 disabled:opacity-30"
               >
                 <Trash className="h-4 w-4" />
               </button>
@@ -176,43 +181,23 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
           {status === "working" && <Spinner className="h-5 w-5" />}
           {status === "working" ? "Processing…" : tool.name}
         </button>
-        {(files.length > 0 || status !== "idle") && (
+        {(files.length > 0 || status === "error") && (
           <button
             type="button"
             onClick={reset}
             disabled={disabled}
-            className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium hover:border-brand-300 disabled:opacity-50"
+            className="rounded-full border border-[var(--border)] px-4 py-2.5 text-sm font-medium hover:border-violet-300 disabled:opacity-50"
           >
             Start over
           </button>
         )}
       </div>
 
-      {/* Live status region for assistive tech */}
       <div aria-live="polite" className="mt-4">
         {status === "error" && (
-          <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
+          <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
             <Alert className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
-          </div>
-        )}
-        {status === "done" && (
-          <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900/50 dark:bg-green-900/20 dark:text-green-300">
-            <div className="flex items-center gap-2 font-medium">
-              <Check className="h-4 w-4" />
-              Done — your download should have started.
-            </div>
-            {note && <p className="mt-1">{note}</p>}
-            <button
-              type="button"
-              onClick={() =>
-                resultRef.current && triggerDownload(resultRef.current.blob, resultRef.current.name)
-              }
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
-            >
-              <Download className="h-4 w-4" />
-              Download again
-            </button>
           </div>
         )}
       </div>
@@ -233,7 +218,7 @@ function Field({
 }) {
   const id = `field-${field.name}`;
   const base =
-    "w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm focus:border-brand-500";
+    "w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-violet-500";
   return (
     <div>
       <label htmlFor={id} className="mb-1 block text-sm font-medium">
@@ -266,7 +251,7 @@ function Field({
           className={base}
         />
       )}
-      {field.help && <p className="mt-1 text-xs text-[var(--muted)]">{field.help}</p>}
+      {field.help && <p className="mt-1 text-xs text-slate-400">{field.help}</p>}
     </div>
   );
 }

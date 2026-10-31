@@ -8,6 +8,8 @@ export function ToolCard({ tool }: { tool: ToolDef }) {
   return (
     <Link
       href={`/${tool.slug}`}
+      target="_blank"
+      rel="noopener noreferrer"
       className={`group relative overflow-hidden rounded-3xl border border-[var(--border)] bg-white p-5 shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-glow ${c.hoverBorder}`}
     >
       <span className={`absolute inset-x-0 top-0 h-1.5 ${c.bar}`} />
