@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+npm-debug.log*
+yarn-error.log*
+
+# Env & secrets (never commit real secrets)
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Runtime temp storage (uploaded/processed files must never be committed)
+backend/.data/
+backend/tmp/
+*.tmp
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml

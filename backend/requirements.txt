@@ -1,0 +1,19 @@
+# Pinned to compatible ranges. Tested against the lower bounds.
+fastapi>=0.115,<0.120
+uvicorn[standard]>=0.30,<0.40
+python-multipart>=0.0.9,<0.1
+pydantic>=2.7,<3
+pydantic-settings>=2.3,<3
+pypdf>=5.1,<7
+cryptography>=42,<47        # required by pypdf for AES password encryption
+PyMuPDF>=1.24,<1.26
+Pillow>=10.3,<12
+pdf2docx>=0.5.6,<0.6        # PDF -> editable Word (.docx); no LibreOffice needed
+pytesseract>=0.3.10,<0.4   # OCR wrapper; needs the Tesseract binary (brew install tesseract)
+# Word/Excel/Office -> PDF uses LibreOffice (soffice), which must be installed on the
+# host/container separately (brew install --cask libreoffice). It is NOT a pip package.
+# OCR needs the Tesseract binary (brew install tesseract). It is NOT a pip package.
+
+# Dev / test
+pytest>=8.2,<9
+httpx>=0.27,<0.29

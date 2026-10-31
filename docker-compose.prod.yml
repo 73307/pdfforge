@@ -1,0 +1,65 @@
+# Production stack: frontend + backend (with conversion/OCR tools) + Caddy (auto-HTTPS).
+# Set DOMAIN in a .env file next to this one, then:  docker compose -f docker-compose.prod.yml up -d --build
+#
+#   echo "DOMAIN=yourdomain.com" > .env
+#
+# DNS: point both  yourdomain.com  and  api.yourdomain.com  (A/AAAA) at this server's IP.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.full        # includes LibreOffice + Tesseract
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      CORS_ALLOW_ORIGINS: "https://${DOMAIN}"
+      DATA_DIR: /data
+      RATE_LIMIT_REQUESTS: "60"
+      RATE_LIMIT_WINDOW_SECONDS: "60"
+      OFFICE_TIMEOUT_SECONDS: "180"
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /data
+      - /tmp
+    mem_limit: 2g
+    cpus: "2.0"
+    expose:
+      - "8000"            # internal only; Caddy reaches it over the compose network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the client bundle at build time -> must be the PUBLIC api URL.
+        NEXT_PUBLIC_API_BASE_URL: "https://api.${DOMAIN}"
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.8
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"       # HTTP/3
+    environment:
+      DOMAIN: "${DOMAIN}"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

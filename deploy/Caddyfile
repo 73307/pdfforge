@@ -1,0 +1,33 @@
+# Caddy automatically obtains & renews HTTPS certificates from Let's Encrypt.
+# {$DOMAIN} is read from the environment (set it in .env, e.g. DOMAIN=pdfforge.com).
+#
+# Frontend  -> https://DOMAIN
+# Backend   -> https://api.DOMAIN
+
+{$DOMAIN} {
+	encode gzip zstd
+	reverse_proxy frontend:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+api.{$DOMAIN} {
+	encode gzip zstd
+
+	# Edge body-size guard (slightly above the app's 50 MB limit).
+	request_body {
+		max_size 55MB
+	}
+
+	reverse_proxy backend:8000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}

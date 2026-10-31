@@ -1,0 +1,35 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      CORS_ALLOW_ORIGINS: http://localhost:3000
+      DATA_DIR: /data
+    ports:
+      - "8000:8000"
+    # Hardening: no privilege escalation, writable temp via tmpfs only.
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /data
+      - /tmp
+    # Resource caps (compose v2 honours these in swarm; for local use `docker run`
+    # flags or your orchestrator). Kept here as documentation of intent.
+    mem_limit: 1g
+    cpus: "1.0"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # The browser talks to the backend on the host-mapped port.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

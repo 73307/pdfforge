@@ -1,0 +1,38 @@
+name: Deploy
+
+# Deploys when you push a version tag (e.g. git tag v1.0.0 && git push --tags),
+# or manually via the "Run workflow" button. It stays DORMANT (the job is skipped)
+# until you set the DEPLOY_SSH_HOST repository variable, so it is safe to commit.
+#
+# Configure in GitHub → Settings → Secrets and variables → Actions:
+#   Variables: DEPLOY_SSH_HOST, DEPLOY_SSH_USER, DEPLOY_PATH, DEPLOY_SSH_PORT (optional)
+#   Secrets:   DEPLOY_SSH_KEY  (a private SSH key authorized on the server)
+#
+# The server must already have: Docker, the repo cloned at DEPLOY_PATH (with a git
+# remote), and a .env file there containing DOMAIN=yourdomain.com (see DEPLOYMENT.md).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    if: ${{ vars.DEPLOY_SSH_HOST != '' }}
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1  # pin to a specific SHA/patch for stricter supply-chain safety
+        with:
+          host: ${{ vars.DEPLOY_SSH_HOST }}
+          username: ${{ vars.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ vars.DEPLOY_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd "${{ vars.DEPLOY_PATH }}"
+            git fetch --all --tags
+            git checkout --force "${{ github.ref_name }}"
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
