@@ -104,7 +104,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
   const disabled = status === "working";
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-card sm:p-6">
+    <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-card sm:p-6">
       <Dropzone accept={tool.accept} multiple={tool.multiple} onFiles={addFiles} />
 
       {files.length > 0 && (
@@ -171,7 +171,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
           type="button"
           onClick={run}
           disabled={disabled || files.length < tool.minFiles}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-6 py-2.5 font-semibold text-white shadow-md transition hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {status === "working" && <Spinner className="h-5 w-5" />}
           {status === "working" ? "Processing…" : tool.name}

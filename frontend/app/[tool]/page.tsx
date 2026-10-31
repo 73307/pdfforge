@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTool, TOOLS } from "@/lib/tools";
 import { ToolRunner } from "@/components/ToolRunner";
+import { ToolIcon } from "@/components/icons";
+import { toolColor } from "@/components/toolColors";
 
 export function generateStaticParams() {
   return TOOLS.map((t) => ({ tool: t.slug }));
@@ -26,6 +28,7 @@ export function generateMetadata({ params }: { params: { tool: string } }): Meta
 export default function ToolPage({ params }: { params: { tool: string } }) {
   const tool = getTool(params.tool);
   if (!tool) notFound();
+  const c = toolColor(tool.slug);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -46,8 +49,13 @@ export default function ToolPage({ params }: { params: { tool: string } }) {
         <span aria-hidden="true">/</span> <span className="text-[var(--text)]">{tool.name}</span>
       </nav>
 
-      <h1 className="text-3xl font-bold tracking-tight">{tool.name}</h1>
-      <p className="mt-2 text-[var(--muted)]">{tool.description}</p>
+      <div className={`mb-4 inline-flex rounded-2xl ${c.chipBg} ${c.chipText} p-3`}>
+        <ToolIcon name={tool.icon} className="h-7 w-7" />
+      </div>
+      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+        {tool.name}
+      </h1>
+      <p className="mt-2 max-w-2xl text-slate-600">{tool.description}</p>
 
       <div className="mt-6">
         <ToolRunner tool={tool} />
