@@ -15,6 +15,7 @@ out/
 .turbo/
 npm-debug.log*
 yarn-error.log*
+*.tsbuildinfo
 
 # Env & secrets (never commit real secrets)
 .env

@@ -23,7 +23,7 @@ branding, UI and code.
 ### 1. Backend (FastAPI)
 
 ```bash
-cd pdf-converter/backend
+cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -43,7 +43,7 @@ Expected: `{"status":"ok", ...}`
 Run backend tests:
 
 ```bash
-cd pdf-converter/backend
+cd backend
 source .venv/bin/activate
 pytest -q
 ```
@@ -51,7 +51,7 @@ pytest -q
 ### 2. Frontend (Next.js)
 
 ```bash
-cd pdf-converter/frontend
+cd frontend
 npm install
 cp .env.local.example .env.local   # points the UI at http://localhost:8000
 npm run dev
@@ -59,25 +59,26 @@ npm run dev
 
 Open http://localhost:3000
 
-### 3. Everything with Docker (optional)
+### 3. Quick Start (Run Both Together)
+
+You can run both servers together with the root script:
 
 ```bash
-cd pdf-converter
-cp .env.example .env
-docker compose up --build
+./run-dev.sh
 ```
-
-Frontend → http://localhost:3000 · Backend → http://localhost:8000
 
 ---
 
 ## Project layout
 
 ```
-pdf-converter/
+pdfforge/
 ├── backend/      FastAPI app, PDF services, validators, security, tests
 ├── frontend/     Next.js UI, tool pages, components
 ├── docs/         requirements, decisions, security, project status
+├── docker-compose.yml
+└── .env.example
+```
 ├── docker-compose.yml
 └── .env.example
 ```

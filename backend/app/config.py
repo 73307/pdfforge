@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     app_debug: bool = False
 
     # Browser origins allowed to call this API (comma separated).
-    cors_allow_origins: str = "http://localhost:3000"
+    cors_allow_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
 
     # Upload / processing limits — defense in depth.
     max_upload_bytes: int = 52_428_800     # 50 MB whole request

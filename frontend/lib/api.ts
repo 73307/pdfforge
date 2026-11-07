@@ -1,7 +1,8 @@
 // Thin API client. Sends multipart form data and returns the processed file as a Blob.
 // Errors from the backend are already generic/safe; we surface the message as-is.
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const BASE = RAW_BASE.replace(/\/+$/, "");
 
 export interface ProcessResult {
   blob: Blob;

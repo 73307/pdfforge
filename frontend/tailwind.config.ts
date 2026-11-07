@@ -21,7 +21,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
-          "var(--font-jakarta)",
+          '"Plus Jakarta Sans"',
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
