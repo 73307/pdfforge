@@ -162,6 +162,68 @@ export const Alert = (p: SvgProps) => (
   </Svg>
 );
 
+export const ArrowRight = (p: SvgProps) => (
+  <Svg {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Svg>
+);
+
+export const Search = (p: SvgProps) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M21 21l-4.3-4.3" />
+  </Svg>
+);
+
+export const Help = (p: SvgProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.2 9a2.8 2.8 0 0 1 5.4 1c0 1.8-2.6 2.2-2.6 4" />
+    <path d="M12 17.5h.01" />
+  </Svg>
+);
+
+export const Menu = (p: SvgProps) => (
+  <Svg {...p}>
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </Svg>
+);
+
+export const Close = (p: SvgProps) => (
+  <Svg {...p}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Svg>
+);
+
+export const Home = (p: SvgProps) => (
+  <Svg {...p}>
+    <path d="M3 10.5 12 3l9 7.5" />
+    <path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" />
+  </Svg>
+);
+
+export const Grid = (p: SvgProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+  </Svg>
+);
+
+export const Layers = (p: SvgProps) => (
+  <Svg {...p}>
+    <path d="M12 3l9 5-9 5-9-5 9-5z" />
+    <path d="M3 13l9 5 9-5" />
+  </Svg>
+);
+
+export const Swap = (p: SvgProps) => (
+  <Svg {...p}>
+    <path d="M4 8h13l-3-3M20 16H7l3 3" />
+  </Svg>
+);
+
 export const Spinner = ({ className }: { className?: string }) => (
   <svg
     className={`animate-spin ${className ?? ""}`}

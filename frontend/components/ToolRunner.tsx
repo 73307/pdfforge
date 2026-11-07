@@ -6,6 +6,7 @@ import type { ToolDef, ToolField } from "@/lib/tools";
 import { uploadWithProgress } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 import { setResult } from "@/lib/resultStore";
+import { peekPendingFiles, clearPendingFiles } from "@/lib/pendingFile";
 import { Dropzone } from "./Dropzone";
 import { ArrowDown, ArrowUp, Alert, Spinner, Trash } from "./icons";
 
@@ -19,12 +20,22 @@ function initialValues(tool: ToolDef): Record<string, string> {
 
 export function ToolRunner({ tool }: { tool: ToolDef }) {
   const router = useRouter();
-  const [files, setFiles] = React.useState<File[]>([]);
+  // Pick up a file handed over from the home "Start with your document" card.
+  const [files, setFiles] = React.useState<File[]>(() => {
+    const pending = peekPendingFiles();
+    if (!pending || !pending.length) return [];
+    return tool.multiple ? pending : pending.slice(0, 1);
+  });
   const [values, setValues] = React.useState<Record<string, string>>(() => initialValues(tool));
   const [status, setStatus] = React.useState<Status>("idle");
   const [error, setError] = React.useState("");
   const [progress, setProgress] = React.useState(0);
   const [phase, setPhase] = React.useState<"upload" | "process">("upload");
+
+  // The handoff is one-shot: clear it once this tool has captured the files.
+  React.useEffect(() => {
+    clearPendingFiles();
+  }, []);
 
   function addFiles(incoming: File[]) {
     setError("");
@@ -137,7 +148,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
                     aria-label="Move up"
                     disabled={i === 0 || disabled}
                     onClick={() => move(i, -1)}
-                    className="rounded-md p-1 hover:bg-violet-50 disabled:opacity-30"
+                    className="rounded-md p-1 hover:bg-brand-50 disabled:opacity-30"
                   >
                     <ArrowUp className="h-4 w-4" />
                   </button>
@@ -146,7 +157,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
                     aria-label="Move down"
                     disabled={i === files.length - 1 || disabled}
                     onClick={() => move(i, 1)}
-                    className="rounded-md p-1 hover:bg-violet-50 disabled:opacity-30"
+                    className="rounded-md p-1 hover:bg-brand-50 disabled:opacity-30"
                   >
                     <ArrowDown className="h-4 w-4" />
                   </button>
@@ -185,7 +196,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
           type="button"
           onClick={run}
           disabled={disabled || files.length < tool.minFiles}
-          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-6 py-2.5 font-semibold text-white shadow-md transition hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-6 py-2.5 font-semibold text-white shadow-brand transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {status === "working" && <Spinner className="h-5 w-5" />}
           {status === "working" ? (phase === "upload" ? "Uploading…" : "Processing…") : tool.name}
@@ -195,7 +206,7 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
             type="button"
             onClick={reset}
             disabled={disabled}
-            className="rounded-full border border-[var(--border)] px-4 py-2.5 text-sm font-medium hover:border-violet-300 disabled:opacity-50"
+            className="rounded-full border border-[var(--border)] px-4 py-2.5 text-sm font-medium hover:border-brand-300 disabled:opacity-50"
           >
             Start over
           </button>
@@ -209,14 +220,14 @@ export function ToolRunner({ tool }: { tool: ToolDef }) {
               <span>{phase === "upload" ? "Uploading your file…" : "Processing…"}</span>
               {phase === "upload" && <span>{progress}%</span>}
             </div>
-            <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-violet-100">
+            <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-brand-100">
               {phase === "upload" ? (
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 transition-all duration-150"
+                  className="h-full rounded-full bg-brand-500 transition-all duration-150"
                   style={{ width: `${progress}%` }}
                 />
               ) : (
-                <div className="animate-indeterminate inset-y-0 w-1/3 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500" />
+                <div className="animate-indeterminate inset-y-0 w-1/3 rounded-full bg-brand-500" />
               )}
             </div>
           </div>
@@ -245,7 +256,7 @@ function Field({
 }) {
   const id = `field-${field.name}`;
   const base =
-    "w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-violet-500";
+    "w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
   return (
     <div>
       <label htmlFor={id} className="mb-1 block text-sm font-medium">

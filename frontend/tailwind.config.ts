@@ -6,17 +6,31 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Primary brand — the PDFForge orange.
         brand: {
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          800: "#5b21b6",
-          900: "#4c1d95",
+          50: "#fff5f0",
+          100: "#ffe8dc",
+          200: "#ffcbb0",
+          300: "#ffa884",
+          400: "#ff7f4d",
+          500: "#f75f22",
+          600: "#e64e12",
+          700: "#bf3d0f",
+          800: "#983312",
+          900: "#7a2d13",
+        },
+        // Deep teal used for the workspace sidebar and ink accents.
+        ink: {
+          50: "#eef5f3",
+          100: "#d4e6e2",
+          200: "#a7cdc6",
+          300: "#6faba1",
+          400: "#3f867b",
+          500: "#2a6d63",
+          600: "#1d514a",
+          700: "#163f3a",
+          800: "#102e2b",
+          900: "#0b211f",
         },
       },
       fontFamily: {
@@ -31,8 +45,9 @@ const config: Config = {
         ],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(21,19,43,0.04), 0 10px 30px rgba(124,58,237,0.08)",
-        glow: "0 18px 50px -12px rgba(124,58,237,0.35)",
+        card: "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px rgba(16,24,40,0.06)",
+        lift: "0 16px 40px -18px rgba(16,24,40,0.28)",
+        brand: "0 12px 26px -10px rgba(230,78,18,0.45)",
       },
       borderRadius: {
         "2xl": "1rem",

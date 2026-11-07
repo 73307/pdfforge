@@ -314,3 +314,48 @@ export const TOOLS: ToolDef[] = [
 export function getTool(slug: string): ToolDef | undefined {
   return TOOLS.find((t) => t.slug === slug);
 }
+
+// --- Categories & grouping (used by the sidebar, home and tool finder) ---
+
+export type CategoryId = "organize" | "convert" | "optimize";
+
+export interface Category {
+  id: CategoryId;
+  label: string;
+  blurb: string;
+}
+
+export const CATEGORIES: Category[] = [
+  { id: "organize", label: "Organize", blurb: "Arrange, combine and tidy up pages." },
+  { id: "convert", label: "Convert", blurb: "Move between PDF, images and Office files." },
+  { id: "optimize", label: "Optimize & protect", blurb: "Shrink files and lock them down." },
+];
+
+export const TOOL_CATEGORY: Record<string, CategoryId> = {
+  "merge-pdf": "organize",
+  "split-pdf": "organize",
+  "rotate-pdf": "organize",
+  "images-to-pdf": "convert",
+  "pdf-to-images": "convert",
+  "pdf-to-word": "convert",
+  "word-to-pdf": "convert",
+  "excel-to-pdf": "convert",
+  "ocr-pdf": "convert",
+  "compress-pdf": "optimize",
+  "protect-pdf": "optimize",
+};
+
+// Shown in the "Popular tools" row on the home page, in this order.
+export const POPULAR_SLUGS = ["merge-pdf", "compress-pdf", "pdf-to-word"];
+
+export function toolsByCategory(id: CategoryId): ToolDef[] {
+  return TOOLS.filter((t) => TOOL_CATEGORY[t.slug] === id);
+}
+
+export function categoryOf(slug: string): CategoryId | undefined {
+  return TOOL_CATEGORY[slug];
+}
+
+export function categoryLabel(id: CategoryId): string {
+  return CATEGORIES.find((c) => c.id === id)?.label ?? "";
+}

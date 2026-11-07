@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { WorkspaceProvider } from "@/components/workspace/SearchContext";
+import { Sidebar } from "@/components/workspace/Sidebar";
+import { Topbar } from "@/components/workspace/Topbar";
+import { WorkspaceFooter } from "@/components/workspace/WorkspaceFooter";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pdfforge.example"),
@@ -42,10 +44,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex min-h-screen flex-col font-sans">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="font-sans">
+        <WorkspaceProvider>
+          <Sidebar />
+          <div className="flex min-h-screen flex-col lg:pl-[264px]">
+            <Topbar />
+            <main className="flex-1">{children}</main>
+            <WorkspaceFooter />
+          </div>
+        </WorkspaceProvider>
       </body>
     </html>
   );
