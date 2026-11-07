@@ -44,6 +44,7 @@ export default function PreviewPage() {
 
   const isPdf = result.type.includes("pdf");
   const isText = result.type.startsWith("text/");
+  const isImage = result.type.startsWith("image/");
   const sizeLabel = formatBytes(result.blob.size);
 
   return (
@@ -105,7 +106,24 @@ export default function PreviewPage() {
             {text || "Loading text…"}
           </pre>
         )}
-        {!isPdf && !isText && (
+        {isImage && url && (
+          <div
+            className="flex items-center justify-center p-6"
+            style={{
+              backgroundImage:
+                "repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%)",
+              backgroundSize: "20px 20px",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={url}
+              alt={result.filename}
+              className="max-h-[70vh] max-w-full rounded-xl object-contain shadow-sm"
+            />
+          </div>
+        )}
+        {!isPdf && !isText && !isImage && (
           <div className="flex flex-col items-center justify-center gap-3 p-16 text-center">
             <div className="inline-flex rounded-2xl bg-ink-50 p-4 text-ink-600">
               <Download className="h-7 w-7" />

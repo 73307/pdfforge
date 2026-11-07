@@ -104,6 +104,13 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M8 10h8M8 13h8M8 16h5" />
     </>
   ),
+  scissors: (
+    <>
+      <circle cx="6" cy="6" r="2.6" />
+      <circle cx="6" cy="18" r="2.6" />
+      <path d="M8.3 7.6 20 18M8.3 16.4 20 6M8.3 12H14" />
+    </>
+  ),
 };
 
 export function ToolIcon({ name, className }: { name: string; className?: string }) {

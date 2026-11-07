@@ -10,6 +10,7 @@ PyMuPDF>=1.24,<1.26
 Pillow>=10.3,<12
 pdf2docx>=0.5.6,<0.6        # PDF -> editable Word (.docx); no LibreOffice needed
 pytesseract>=0.3.10,<0.4   # OCR wrapper; needs the Tesseract binary (brew install tesseract)
+rembg[cpu]>=2.0.60,<3      # background removal (U^2-Net ONNX); downloads ~176MB model on first use
 # Word/Excel/Office -> PDF uses LibreOffice (soffice), which must be installed on the
 # host/container separately (brew install --cask libreoffice). It is NOT a pip package.
 # OCR needs the Tesseract binary (brew install tesseract). It is NOT a pip package.

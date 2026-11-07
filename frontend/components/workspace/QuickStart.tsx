@@ -15,7 +15,7 @@ const ACCEPT =
 // Which tools to suggest for each file kind, in a sensible order.
 const SUGGEST: Record<Kind, string[]> = {
   pdf: ["compress-pdf", "merge-pdf", "split-pdf", "pdf-to-word", "rotate-pdf", "protect-pdf"],
-  image: ["images-to-pdf"],
+  image: ["remove-background", "images-to-pdf"],
   word: ["word-to-pdf"],
   excel: ["excel-to-pdf"],
   other: [],

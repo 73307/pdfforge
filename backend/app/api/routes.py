@@ -19,6 +19,7 @@ from app.core.errors import ProcessingError, ValidationAppError
 from app.core.pages import parse_pages, parse_ranges
 from app.core.runner import run_isolated
 from app.security.ratelimit import rate_limit
+from app.services.background import rembg_available, remove_background
 from app.services.compress import compress_pdf
 from app.services.images_to_pdf import images_to_pdf
 from app.services.merge import merge_pdfs
@@ -35,6 +36,7 @@ router = APIRouter(prefix="/api", dependencies=[Depends(rate_limit)])
 
 PDF = "application/pdf"
 ZIP = "application/zip"
+PNG = "image/png"
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
@@ -292,6 +294,32 @@ async def ocr_endpoint(
             media, name = PDF, "searchable.pdf"
         run_isolated(ocr_pdf, path, str(out), output, lang, timeout=settings.office_timeout_seconds)
         return _stream(out, media, name, workdir)
+    except Exception:
+        storage.cleanup(workdir)
+        raise
+
+
+@router.post("/remove-background")
+async def remove_background_endpoint(
+    file: UploadFile = File(...),
+    background: str = Form("transparent"),
+):
+    if background not in ("transparent", "white", "black"):
+        raise ValidationAppError("background must be 'transparent', 'white', or 'black'.")
+    # Pre-check so the clear message reaches the user (the isolated worker hides its text).
+    if not rembg_available():
+        raise ProcessingError(
+            "Background removal is unavailable: the model library isn't installed on the server."
+        )
+    workdir = storage.new_workdir()
+    try:
+        [path] = await _save_images([file], workdir)
+        out = workdir / "no-background.png"
+        run_isolated(
+            remove_background, path, str(out), background,
+            timeout=settings.office_timeout_seconds,
+        )
+        return _stream(out, PNG, "no-background.png", workdir)
     except Exception:
         storage.cleanup(workdir)
         raise

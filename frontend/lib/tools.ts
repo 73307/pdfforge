@@ -174,6 +174,36 @@ export const TOOLS: ToolDef[] = [
     resultName: "pages.zip",
   },
   {
+    slug: "remove-background",
+    name: "Remove Background",
+    tagline: "Erase a photo's background",
+    description:
+      "Automatically cut out the subject and remove the background from a JPG or PNG. Download a transparent PNG, or drop the subject onto a solid white or black background.",
+    icon: "scissors",
+    accept: "image/jpeg,image/png,.jpg,.jpeg,.png",
+    multiple: false,
+    minFiles: 1,
+    endpoint: "/api/remove-background",
+    fields: [
+      {
+        kind: "select",
+        name: "background",
+        label: "New background",
+        default: "transparent",
+        options: [
+          { value: "transparent", label: "Transparent (PNG)" },
+          { value: "white", label: "White" },
+          { value: "black", label: "Black" },
+        ],
+      },
+    ],
+    resultName: "no-background.png",
+    notes: [
+      "Works best on clear subjects — people, products, animals, objects.",
+      "The first run after the server starts takes a few extra seconds to load the model.",
+    ],
+  },
+  {
     slug: "compress-pdf",
     name: "Compress PDF",
     tagline: "Make PDFs smaller",
@@ -337,6 +367,7 @@ export const TOOL_CATEGORY: Record<string, CategoryId> = {
   "rotate-pdf": "organize",
   "images-to-pdf": "convert",
   "pdf-to-images": "convert",
+  "remove-background": "convert",
   "pdf-to-word": "convert",
   "word-to-pdf": "convert",
   "excel-to-pdf": "convert",
