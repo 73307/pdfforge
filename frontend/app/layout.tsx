@@ -28,12 +28,13 @@ export const metadata: Metadata = {
       "Merge, split, rotate, compress, protect and convert PDFs in your browser. Secure by design.",
     type: "website",
     siteName: "PDFForge",
+    images: [{ url: "/logo.webp", width: 2000, height: 667, alt: "PDFForge" }],
   },
   robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#7c3aed",
+  themeColor: "#ef5a1f",
   width: "device-width",
   initialScale: 1,
 };
