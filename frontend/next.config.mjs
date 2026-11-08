@@ -30,7 +30,8 @@ const csp = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  "frame-src 'none'",
+  // The result page previews PDFs in an <iframe> that points at an in-memory blob URL.
+  "frame-src 'self' blob:",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   ...(isProd ? ["upgrade-insecure-requests"] : []),
