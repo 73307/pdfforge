@@ -23,9 +23,13 @@ _DOCS_CSP = (
 
 _DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")
 
-# The admin dashboard is a self-contained HTML page with inline CSS (no scripts, no
-# external assets). Allow inline styles only; everything else stays locked down.
-_ADMIN_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
+# The admin dashboard + login are self-contained HTML pages with inline CSS (no scripts,
+# no external assets). Allow inline styles and same-origin form posts (the login form);
+# everything else stays locked down.
+_ADMIN_CSP = (
+    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; "
+    "base-uri 'none'; frame-ancestors 'none'"
+)
 
 _BASE_HEADERS = {
     "X-Content-Type-Options": "nosniff",
