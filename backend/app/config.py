@@ -49,6 +49,15 @@ class Settings(BaseSettings):
     # spoofed client IP (which would let a caller dodge the rate limit).
     trust_forwarded_for: bool = False
 
+    # --- Anonymous usage metrics + admin dashboard ---
+    # Metrics are aggregate counts only (per tool: requests/success/errors/timing). No
+    # IPs, file names, or contents — nothing that identifies a user.
+    metrics_enabled: bool = True
+    metrics_db_path: str = ".data/metrics.db"
+    # Admin dashboard at /admin (HTTP Basic auth). Disabled unless BOTH are set.
+    admin_user: str = ""
+    admin_password: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]

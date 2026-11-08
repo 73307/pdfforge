@@ -88,9 +88,14 @@ On the server:
 ```bash
 git clone https://github.com/73307/pdfforge.git
 cd pdfforge
-echo "DOMAIN=yourdomain.com" > .env     # <-- your real domain, no https://
+# your real domain (no https://) + a strong admin password for the stats dashboard
+printf 'DOMAIN=yourdomain.com\nADMIN_PASSWORD=change-this-to-something-strong\n' > .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+> **Admin dashboard:** after launch, your anonymous usage stats are at
+> `https://api.yourdomain.com/admin` — log in with user `admin` and the `ADMIN_PASSWORD`
+> you set above. Leave `ADMIN_PASSWORD` empty to disable the dashboard entirely.
 
 The first build downloads LibreOffice/Tesseract and takes **~5–10 minutes**. Caddy then
 automatically fetches HTTPS certificates for `yourdomain.com` and `api.yourdomain.com`.

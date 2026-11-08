@@ -21,11 +21,19 @@ services:
       # per real client. Safe here because the backend is internal-only (not exposed).
       TRUST_FORWARDED_FOR: "true"
       OFFICE_TIMEOUT_SECONDS: "180"
+      # Usage metrics persist outside the ephemeral tmpfs so they survive restarts.
+      METRICS_DB_PATH: /metrics/metrics.db
+      # Admin dashboard at https://api.DOMAIN/admin. Set these in the .env next to this
+      # file (ADMIN_USER / ADMIN_PASSWORD); leave ADMIN_PASSWORD empty to disable it.
+      ADMIN_USER: "${ADMIN_USER:-admin}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /data
+      - /data            # user files — RAM-backed, wiped on restart (never persisted)
       - /tmp
+    volumes:
+      - metrics_data:/metrics   # aggregate usage counts only — persistent
     mem_limit: 2g
     cpus: "2.0"
     expose:
@@ -66,3 +74,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  metrics_data:

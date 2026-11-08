@@ -23,6 +23,10 @@ _DOCS_CSP = (
 
 _DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")
 
+# The admin dashboard is a self-contained HTML page with inline CSS (no scripts, no
+# external assets). Allow inline styles only; everything else stays locked down.
+_ADMIN_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
+
 _BASE_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -34,6 +38,8 @@ _BASE_HEADERS = {
 
 
 def _csp_for(path: str) -> str:
+    if path.startswith("/admin"):
+        return _ADMIN_CSP
     # Only relax for the docs pages, and only when they're enabled (non-production).
     if settings.app_env != "production" and path.startswith(_DOCS_PATHS):
         return _DOCS_CSP

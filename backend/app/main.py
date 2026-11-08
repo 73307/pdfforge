@@ -10,10 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import __version__
+from app.api.admin import router as admin_router
 from app.api.routes import router
 from app.config import settings
 from app.core.errors import AppError
 from app.core.logging import configure_logging, get_logger
+from app.metrics_middleware import MetricsMiddleware
 from app.security.headers import SecurityHeadersMiddleware
 from app.security.limits import MaxBodySizeMiddleware
 from app.storage.temp import start_sweeper
@@ -39,7 +41,8 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.app_env != "production" else None,
 )
 
-# Middleware: last added is outermost. SecurityHeaders must wrap everything.
+# Middleware: last added is outermost. Metrics is outermost so it times the final
+# response; SecurityHeaders wraps the rest.
 app.add_middleware(MaxBodySizeMiddleware, max_bytes=settings.max_upload_bytes)
 app.add_middleware(
     CORSMiddleware,
@@ -56,6 +59,7 @@ app.add_middleware(
     max_age=600,
 )
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(MetricsMiddleware)
 
 
 # --------------------------------------------------------------------------- errors
@@ -99,3 +103,4 @@ async def health() -> dict:
 
 
 app.include_router(router)
+app.include_router(admin_router)
