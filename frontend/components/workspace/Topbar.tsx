@@ -32,7 +32,7 @@ export function Topbar() {
 
   return (
     <>
-    <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[#f4f7f7]/85 backdrop-blur-xl">
       <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
         {/* Mobile: menu + brand */}
         <button
@@ -50,7 +50,7 @@ export function Topbar() {
         {/* Desktop breadcrumb */}
         <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm lg:flex">
           <span className="text-[var(--muted)]">Workspace</span>
-          <span className="text-[var(--muted)]/50" aria-hidden="true">
+          <span className="text-slate-300" aria-hidden="true">
             /
           </span>
           <span className="truncate font-semibold text-[var(--text)]">{crumb}</span>
@@ -66,7 +66,7 @@ export function Topbar() {
             onKeyDown={onSearchKey}
             placeholder="Search PDF tools…"
             aria-label="Search PDF tools"
-            className="h-10 w-full rounded-full border border-[var(--border)] bg-white pl-10 pr-4 text-sm text-[var(--text)] shadow-sm outline-none transition placeholder:text-[var(--muted)]/70 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            className="h-10 w-full rounded-full border border-[var(--border)] bg-white pl-10 pr-4 text-sm text-[var(--text)] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
           />
         </div>
 
@@ -110,7 +110,7 @@ export function Topbar() {
                 <Close className="h-5 w-5" />
               </button>
             </div>
-            <p className="mb-2 mt-6 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sidebar-ink)]/70">
+            <p className="mb-2 mt-6 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sidebar-muted)]">
               Workspace
             </p>
             <NavLinks onNavigate={() => setMenuOpen(false)} />

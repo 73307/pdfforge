@@ -16,7 +16,8 @@
   --sidebar: #0f2e2b;
   --sidebar-2: #163f3a;    /* hover */
   --sidebar-3: #1d514a;    /* active */
-  --sidebar-ink: #bcd6d0;  /* muted label text on sidebar */
+  --sidebar-ink: #bcd6d0;  /* nav label text on sidebar */
+  --sidebar-muted: #a7c1ba; /* dimmer secondary text (section labels, footer links) */
   --sidebar-line: rgba(255, 255, 255, 0.08);
 
   color-scheme: light;

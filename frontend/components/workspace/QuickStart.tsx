@@ -114,7 +114,7 @@ export function QuickStart() {
       </div>
 
       {files.length > 0 && (
-        <div className="border-t border-[var(--border)] bg-[var(--bg)]/60 p-5 sm:p-6">
+        <div className="border-t border-[var(--border)] bg-[var(--bg)] p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-[var(--text)]">
               {files.length === 1 ? files[0].name : `${files.length} files selected`}

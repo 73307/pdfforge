@@ -13,7 +13,7 @@ export function Sidebar() {
         </span>
       </Link>
 
-      <p className="mb-2 mt-7 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sidebar-ink)]/70">
+      <p className="mb-2 mt-7 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sidebar-muted)]">
         Workspace
       </p>
       <NavLinks />
@@ -26,10 +26,10 @@ export function Sidebar() {
           <Help className="mt-0.5 h-[18px] w-[18px]" />
           <span className="text-sm">
             Need a hand?
-            <span className="block text-xs text-[var(--sidebar-ink)]/70">How we protect your files</span>
+            <span className="block text-xs text-[var(--sidebar-muted)]">How we protect your files</span>
           </span>
         </Link>
-        <div className="mt-2 flex gap-4 px-3 text-xs text-[var(--sidebar-ink)]/70">
+        <div className="mt-2 flex gap-4 px-3 text-xs text-[var(--sidebar-muted)]">
           <Link href="/privacy" className="hover:text-white">
             Privacy
           </Link>
