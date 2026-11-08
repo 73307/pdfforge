@@ -17,6 +17,9 @@ services:
       DATA_DIR: /data
       RATE_LIMIT_REQUESTS: "60"
       RATE_LIMIT_WINDOW_SECONDS: "60"
+      # Backend only sees Caddy's IP, so trust Caddy's X-Forwarded-For to rate-limit
+      # per real client. Safe here because the backend is internal-only (not exposed).
+      TRUST_FORWARDED_FOR: "true"
       OFFICE_TIMEOUT_SECONDS: "180"
     security_opt:
       - no-new-privileges:true
