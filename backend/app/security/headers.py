@@ -3,16 +3,41 @@ from __future__ import annotations
 
 from starlette.datastructures import MutableHeaders
 
-_HEADERS = {
+from app.config import settings
+
+# Strict policy for the JSON/file API: it should never load or render anything itself.
+_STRICT_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+
+# Swagger UI (/docs) pulls its assets from a CDN and fetches /openapi.json, so it needs a
+# looser policy to render. These pages are development-only (disabled in production).
+_DOCS_CSP = (
+    "default-src 'none'; "
+    "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+    "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+    "img-src 'self' data: https://cdn.jsdelivr.net https://fastapi.tiangolo.com; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "worker-src 'self' blob:; "
+    "frame-ancestors 'none'; base-uri 'none'"
+)
+
+_DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")
+
+_BASE_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
-    # This is a JSON/file API; it should never be a document source itself.
-    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
 }
+
+
+def _csp_for(path: str) -> str:
+    # Only relax for the docs pages, and only when they're enabled (non-production).
+    if settings.app_env != "production" and path.startswith(_DOCS_PATHS):
+        return _DOCS_CSP
+    return _STRICT_CSP
 
 
 class SecurityHeadersMiddleware:
@@ -24,11 +49,14 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        csp = _csp_for(scope.get("path", ""))
+
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                for key, value in _HEADERS.items():
+                for key, value in _BASE_HEADERS.items():
                     headers[key] = value
+                headers["Content-Security-Policy"] = csp
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
