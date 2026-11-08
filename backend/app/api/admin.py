@@ -156,7 +156,11 @@ _DASH_CSS = """
             padding:7px 14px; border-radius:999px; white-space:nowrap; }
   .logout:hover { color:#fff; border-color:rgba(255,255,255,.3); }
   h2 { font-size:15px; text-transform:uppercase; letter-spacing:.08em; color:#a7c1ba; margin:32px 0 12px; }
-  .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:20px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-top:20px; }
+  .card .mini { color:#6f8a84; font-size:11px; margin-top:3px; }
+  .hlabel { color:#6f8a84; font-size:9px; margin-top:4px; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:760px) { .split { grid-template-columns:1fr; } }
   .card { background:#163f3a; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px 18px; }
   .card .k { color:#a7c1ba; font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
   .card .v { font-size:28px; font-weight:800; margin-top:4px; }
@@ -191,45 +195,86 @@ def _bar(value: int, maximum: int, color: str) -> str:
     return f'<div class="bar"><span style="width:{w}%;background:{color}"></span></div>'
 
 
+def _bytes(n: int) -> str:
+    v = float(n or 0)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if v < 1024 or unit == "TB":
+            return f"{v:.0f} {unit}" if unit == "B" else f"{v:.1f} {unit}"
+        v /= 1024
+    return f"{v:.1f} TB"
+
+
+def _ms(n: int) -> str:
+    return f"{n / 1000:.1f} s" if n and n >= 1000 else f"{n or 0} ms"
+
+
 def _dashboard(data: dict) -> str:
     totals = data["totals"]
     req, ok, fail = totals["requests"], totals["successes"], totals["failures"]
-    per_tool, trend, errors = data["per_tool"], data["daily_trend"], data["recent_errors"]
+    per_tool = data["per_tool"]
+    trend = data["daily_trend"]
+    hourly = data["hourly"]
+    errs_cat = data["errors_by_category"]
+    recent = data["recent_errors"]
     max_tool = max((t["requests"] or 0 for t in per_tool), default=0)
     max_day = max((d["requests"] for d in trend), default=0)
+    max_hour = max((h["requests"] for h in hourly), default=0)
+    max_ecat = max((c["count"] for c in errs_cat), default=0)
 
+    # Per-tool table (with median / p95 latency and average sizes)
     rows = ""
     for t in per_tool:
-        r = t["requests"] or 0
-        s = t["successes"] or 0
-        f = t["failures"] or 0
-        avg_ms = round((t["total_ms"] or 0) / r) if r else 0
-        sr = _pct(s, r)
+        sr = _pct(t["successes"], t["requests"])
         sr_color = "#16a34a" if sr >= 90 else "#d97706" if sr >= 60 else "#dc2626"
         rows += f"""<tr>
           <td class="tool">{html.escape(t["tool"])}</td>
-          <td class="num">{r}</td>
-          <td class="barcell">{_bar(r, max_tool, "#f75f22")}</td>
-          <td class="num" style="color:#16a34a">{s}</td>
-          <td class="num" style="color:{'#dc2626' if f else '#9aa6a3'}">{f}</td>
+          <td class="num">{t["requests"]}</td>
+          <td class="barcell">{_bar(t["requests"], max_tool, "#f75f22")}</td>
           <td class="num" style="color:{sr_color};font-weight:700">{sr}%</td>
-          <td class="num">{avg_ms} ms</td>
+          <td class="num">{_ms(t["p50_ms"])}</td>
+          <td class="num">{_ms(t["p95_ms"])}</td>
+          <td class="num">{_bytes(t["avg_in"])}</td>
+          <td class="num">{_bytes(t["avg_out"])}</td>
         </tr>"""
     if not rows:
-        rows = '<tr><td colspan="7" class="empty">No usage recorded yet.</td></tr>'
+        rows = '<tr><td colspan="8" class="empty">No usage recorded yet.</td></tr>'
 
+    # 30-day trend (label every 5th day)
     trend_bars = ""
-    for d in trend:
+    for i, d in enumerate(trend):
         h = round(100 * d["requests"] / max_day) if max_day else 0
+        label = d["day"][5:] if (i % 5 == 0 or i == len(trend) - 1) else ""
         trend_bars += (
             f'<div class="tcol" title="{html.escape(d["day"])}: {d["requests"]}">'
             f'<div class="tbar"><span style="height:{max(h,2)}%"></span></div>'
-            f'<div class="tlabel">{html.escape(d["day"][5:])}</div>'
-            f'<div class="tval">{d["requests"]}</div></div>'
+            f'<div class="hlabel">{html.escape(label)}</div></div>'
         )
 
+    # Hour-of-day histogram (label every 3 hours)
+    hour_bars = ""
+    for h in hourly:
+        pct = round(100 * h["requests"] / max_hour) if max_hour else 0
+        label = f'{h["hour"]:02d}' if h["hour"] % 3 == 0 else ""
+        hour_bars += (
+            f'<div class="tcol" title="{h["hour"]:02d}:00 UTC: {h["requests"]}">'
+            f'<div class="tbar"><span style="height:{max(pct,2)}%"></span></div>'
+            f'<div class="hlabel">{label}</div></div>'
+        )
+
+    # Error breakdown by category
+    ecat_rows = ""
+    for c in errs_cat:
+        ecat_rows += (
+            f'<tr><td class="tool">{html.escape(c["category"])}</td>'
+            f'<td class="barcell">{_bar(c["count"], max_ecat, "#dc2626")}</td>'
+            f'<td class="num">{c["count"]}</td></tr>'
+        )
+    if not ecat_rows:
+        ecat_rows = '<tr><td colspan="3" class="empty">No errors. 🎉</td></tr>'
+
+    # Recent errors
     err_rows = ""
-    for e in errors:
+    for e in recent:
         err_rows += (
             f'<tr><td class="tool">{html.escape(e["tool"])}</td>'
             f'<td><span class="tag">{html.escape(e["category"])}</span></td>'
@@ -241,6 +286,7 @@ def _dashboard(data: dict) -> str:
 
     overall_sr = _pct(ok, req)
     sr_color = "#16a34a" if overall_sr >= 90 else "#d97706" if overall_sr >= 60 else "#dc2626"
+    data_total = totals["bytes_in"] + totals["bytes_out"]
     head = _HEAD.format(extra=_DASH_CSS)
 
     return f"""{head}<div class="wrap">
@@ -253,17 +299,34 @@ def _dashboard(data: dict) -> str:
   </div>
 
   <div class="cards">
-    <div class="card"><div class="k">Total requests</div><div class="v">{req}</div></div>
+    <div class="card"><div class="k">Total requests</div><div class="v">{req}</div>
+      <div class="mini">{ok} ok · {fail} failed</div></div>
     <div class="card"><div class="k">Success rate</div><div class="v" style="color:{sr_color}">{overall_sr}%</div></div>
     <div class="card"><div class="k">Failures</div><div class="v" style="color:{'#dc2626' if fail else '#e8f0ee'}">{fail}</div></div>
+    <div class="card"><div class="k">Data processed</div><div class="v">{_bytes(data_total)}</div>
+      <div class="mini">{_bytes(totals["bytes_in"])} in · {_bytes(totals["bytes_out"])} out</div></div>
   </div>
 
   <h2>Requests — last {len(trend)} days</h2>
   <div class="trend">{trend_bars}</div>
 
+  <div class="split">
+    <div>
+      <h2>Busiest hours (UTC · last 7 days)</h2>
+      <div class="trend">{hour_bars}</div>
+    </div>
+    <div>
+      <h2>Error breakdown</h2>
+      <table>
+        <tr><th>Type</th><th></th><th class="num">Count</th></tr>
+        {ecat_rows}
+      </table>
+    </div>
+  </div>
+
   <h2>Tools</h2>
   <table>
-    <tr><th>Tool</th><th class="num">Uses</th><th></th><th class="num">OK</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Avg time</th></tr>
+    <tr><th>Tool</th><th class="num">Uses</th><th></th><th class="num">Success</th><th class="num">Median</th><th class="num">p95</th><th class="num">Avg in</th><th class="num">Avg out</th></tr>
     {rows}
   </table>
 
@@ -273,5 +336,5 @@ def _dashboard(data: dict) -> str:
     {err_rows}
   </table>
 
-  <div class="foot">PDFForge admin · metrics are aggregate counts only, stored server-side.</div>
+  <div class="foot">PDFForge admin · aggregate counts + percentiles from the recent event window · stored server-side, no personal data.</div>
 </div></body></html>"""
