@@ -9,8 +9,8 @@ export function generateStaticParams() {
   return TOOLS.map((t) => ({ tool: t.slug }));
 }
 
-export function generateMetadata({ params }: { params: { tool: string } }): Metadata {
-  const tool = getTool(params.tool);
+export async function generateMetadata({ params }: { params: Promise<{ tool: string }> }): Promise<Metadata> {
+  const tool = getTool((await params).tool);
   if (!tool) return { title: "Tool not found" };
   return {
     title: tool.name,
@@ -24,8 +24,8 @@ export function generateMetadata({ params }: { params: { tool: string } }): Meta
   };
 }
 
-export default function ToolPage({ params }: { params: { tool: string } }) {
-  const tool = getTool(params.tool);
+export default async function ToolPage({ params }: { params: Promise<{ tool: string }> }) {
+  const tool = getTool((await params).tool);
   if (!tool) notFound();
 
   const jsonLd = {
