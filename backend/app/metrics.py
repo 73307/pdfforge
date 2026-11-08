@@ -2,10 +2,9 @@
 
 Stores aggregate counters plus a rolling window of recent events — per tool: how many
 requests, how many succeeded/failed, processing time, and byte sizes. From these it
-derives deeper (still fully anonymous) insights: time percentiles, busiest hours, error
-breakdowns and data volume. It records NO IP addresses, file names, file contents, or
-anything that could identify a user; it exists purely to show which tools are used and
-where they fail, so the product can be improved.
+derives richer (still fully anonymous) insights for the admin console: trends, time
+percentiles, busiest hours, error breakdowns, recent jobs and data volume. It records
+NO IP addresses, file names, file contents, or anything that could identify a user.
 
 Backed by a small SQLite file so the numbers survive restarts and are shared across
 worker processes. Recording is best-effort and never raises into a request.
@@ -23,7 +22,7 @@ from app.core.logging import get_logger
 
 log = get_logger("metrics")
 
-_MAX_EVENTS = 50_000  # rolling window kept for the deeper (percentile/hourly) stats
+_MAX_EVENTS = 50_000  # rolling window kept for the deeper (percentile/hourly/jobs) stats
 _lock = threading.Lock()
 
 
@@ -115,7 +114,6 @@ def record(tool: str, status: int, duration_ms: int, req_bytes: int, resp_bytes:
 
 
 def _pctile(values: list[int], p: float) -> int:
-    """Nearest-rank-ish percentile with linear interpolation. values must be sorted."""
     if not values:
         return 0
     if len(values) == 1:
@@ -126,108 +124,143 @@ def _pctile(values: list[int], p: float) -> int:
     return int(values[lo] + (values[hi] - values[lo]) * (k - lo))
 
 
-def summary(days: int = 30) -> dict:
-    """Aggregate + deeper view for the admin dashboard."""
-    empty = {
-        "totals": {"requests": 0, "successes": 0, "failures": 0, "bytes_in": 0, "bytes_out": 0},
-        "per_tool": [], "daily_trend": [], "hourly": [], "errors_by_category": [], "recent_errors": [],
+def _empty_report(range_days: int) -> dict:
+    return {
+        "range_days": range_days,
+        "totals": {"requests": 0, "successes": 0, "failures": 0, "bytes_in": 0, "bytes_out": 0,
+                   "median_ms": 0, "p95_ms": 0, "prev_requests": 0, "prev_successes": 0, "prev_failures": 0},
+        "daily": [], "per_tool": [], "hourly": [], "errors_by_category": [],
+        "recent_jobs": [], "recent_errors": [],
     }
+
+
+def report(range_days: int = 7) -> dict:
+    """Everything the admin console needs, scoped to the last `range_days` days."""
+    today = date.today()
+    start_day = (today - timedelta(days=range_days - 1)).isoformat()
+    prev_start = (today - timedelta(days=2 * range_days - 1)).isoformat()
+    start_ts = int(time.time()) - range_days * 86400
+
     try:
         conn = _connect()
         try:
             conn.row_factory = sqlite3.Row
 
-            # --- lifetime per-tool counts + totals (from daily) ---
-            lifetime = {
+            # per-tool counts within the range (from the daily rollup)
+            per_tool_counts = {
                 r["tool"]: dict(r)
                 for r in conn.execute(
                     """SELECT tool, SUM(requests) requests, SUM(successes) successes,
                               SUM(failures) failures, SUM(req_bytes) req_bytes, SUM(resp_bytes) resp_bytes
-                       FROM daily GROUP BY tool"""
+                       FROM daily WHERE day >= ? GROUP BY tool""",
+                    (start_day,),
                 ).fetchall()
             }
-            totals = {"requests": 0, "successes": 0, "failures": 0, "bytes_in": 0, "bytes_out": 0}
-            for t in lifetime.values():
-                totals["requests"] += t["requests"] or 0
-                totals["successes"] += t["successes"] or 0
-                totals["failures"] += t["failures"] or 0
-                totals["bytes_in"] += t["req_bytes"] or 0
-                totals["bytes_out"] += t["resp_bytes"] or 0
-
-            # --- daily trend ---
-            start = (date.today() - timedelta(days=days - 1)).isoformat()
-            by_day = {
-                r["day"]: r["requests"]
+            # per-day totals across all tools, within the range
+            day_rows = {
+                r["day"]: dict(r)
                 for r in conn.execute(
-                    "SELECT day, SUM(requests) requests FROM daily WHERE day >= ? GROUP BY day", (start,)
+                    """SELECT day, SUM(requests) requests, SUM(successes) successes,
+                              SUM(failures) failures, SUM(total_ms) total_ms
+                       FROM daily WHERE day >= ? GROUP BY day""",
+                    (start_day,),
                 ).fetchall()
             }
-            daily_trend = [
-                {"day": (date.today() - timedelta(days=days - 1 - i)).isoformat()}
-                for i in range(days)
-            ]
-            for d in daily_trend:
-                d["requests"] = by_day.get(d["day"], 0)
+            # previous equal-length period (for deltas)
+            prev = conn.execute(
+                """SELECT SUM(requests) requests, SUM(successes) successes, SUM(failures) failures
+                   FROM daily WHERE day >= ? AND day < ?""",
+                (prev_start, start_day),
+            ).fetchone()
 
-            # --- pull recent events once; derive percentiles / sizes / hours / errors ---
             events = conn.execute(
-                "SELECT tool, category, status, ms, req_bytes, resp_bytes, ts FROM events"
+                "SELECT tool, category, status, ms, req_bytes, resp_bytes, ts FROM events WHERE ts >= ? ORDER BY ts",
+                (start_ts,),
             ).fetchall()
         finally:
             conn.close()
     except Exception as exc:  # noqa: BLE001
-        log.warning("metrics summary failed: %s", type(exc).__name__)
-        return empty
+        log.warning("metrics report failed: %s", type(exc).__name__)
+        return _empty_report(range_days)
 
-    # Per-tool timing (percentiles) + average sizes, from the recent event window.
-    ms_by_tool: dict[str, list[int]] = {}
-    in_by_tool: dict[str, list[int]] = {}
-    out_by_tool: dict[str, list[int]] = {}
+    # --- totals + deltas ---
+    totals = {"requests": 0, "successes": 0, "failures": 0, "bytes_in": 0, "bytes_out": 0}
+    for t in per_tool_counts.values():
+        totals["requests"] += t["requests"] or 0
+        totals["successes"] += t["successes"] or 0
+        totals["failures"] += t["failures"] or 0
+        totals["bytes_in"] += t["req_bytes"] or 0
+        totals["bytes_out"] += t["resp_bytes"] or 0
+    totals["prev_requests"] = (prev["requests"] or 0) if prev else 0
+    totals["prev_successes"] = (prev["successes"] or 0) if prev else 0
+    totals["prev_failures"] = (prev["failures"] or 0) if prev else 0
+
+    all_ms = sorted(e["ms"] for e in events)
+    totals["median_ms"] = _pctile(all_ms, 0.50)
+    totals["p95_ms"] = _pctile(all_ms, 0.95)
+
+    # --- daily series (ordered, gap-filled) ---
+    daily = []
+    for i in range(range_days):
+        d = (today - timedelta(days=range_days - 1 - i)).isoformat()
+        row = day_rows.get(d, {})
+        req = row.get("requests", 0) or 0
+        succ = row.get("successes", 0) or 0
+        daily.append({
+            "day": d, "requests": req, "completed": succ,
+            "failed": row.get("failures", 0) or 0,
+            "avg_ms": round((row.get("total_ms", 0) or 0) / req) if req else 0,
+        })
+
+    # --- per-tool timing/sizes from events in range ---
+    ms_by, in_by, out_by = {}, {}, {}
     hours = [0] * 24
-    errors_by_cat: dict[str, int] = {}
-    recent_errors: list[dict] = []
-    week_ago = int(time.time()) - 7 * 86400
-
+    errors_by_cat = {}
     for e in events:
-        ms_by_tool.setdefault(e["tool"], []).append(e["ms"])
-        in_by_tool.setdefault(e["tool"], []).append(e["req_bytes"])
-        out_by_tool.setdefault(e["tool"], []).append(e["resp_bytes"])
-        if e["ts"] >= week_ago:
-            hours[datetime.fromtimestamp(e["ts"], timezone.utc).hour] += 1
+        ms_by.setdefault(e["tool"], []).append(e["ms"])
+        in_by.setdefault(e["tool"], []).append(e["req_bytes"])
+        out_by.setdefault(e["tool"], []).append(e["resp_bytes"])
+        hours[datetime.fromtimestamp(e["ts"], timezone.utc).hour] += 1
         if e["category"] != "ok":
             errors_by_cat[e["category"]] = errors_by_cat.get(e["category"], 0) + 1
 
-    for e in reversed(events):
-        if e["category"] != "ok" and len(recent_errors) < 25:
-            recent_errors.append({
-                "tool": e["tool"], "category": e["category"], "status": e["status"],
-                "at": datetime.fromtimestamp(e["ts"], timezone.utc).isoformat(timespec="seconds"),
-            })
-
     per_tool = []
-    for tool, lt in sorted(lifetime.items(), key=lambda kv: kv[1]["requests"] or 0, reverse=True):
-        ms = sorted(ms_by_tool.get(tool, []))
-        ins = in_by_tool.get(tool, [])
-        outs = out_by_tool.get(tool, [])
+    for tool, c in sorted(per_tool_counts.items(), key=lambda kv: kv[1]["requests"] or 0, reverse=True):
+        ms = sorted(ms_by.get(tool, []))
+        ins, outs = in_by.get(tool, []), out_by.get(tool, [])
         per_tool.append({
-            "tool": tool,
-            "requests": lt["requests"] or 0,
-            "successes": lt["successes"] or 0,
-            "failures": lt["failures"] or 0,
-            "p50_ms": _pctile(ms, 0.50),
-            "p95_ms": _pctile(ms, 0.95),
+            "tool": tool, "requests": c["requests"] or 0, "successes": c["successes"] or 0,
+            "failures": c["failures"] or 0, "p50_ms": _pctile(ms, 0.50), "p95_ms": _pctile(ms, 0.95),
             "avg_in": round(sum(ins) / len(ins)) if ins else 0,
             "avg_out": round(sum(outs) / len(outs)) if outs else 0,
         })
 
+    # --- recent jobs + recent errors (from the tail of the event stream) ---
+    recent_jobs, recent_errors = [], []
+    for e in reversed(events):
+        when = datetime.fromtimestamp(e["ts"], timezone.utc).isoformat(timespec="seconds")
+        if len(recent_jobs) < 12:
+            recent_jobs.append({
+                "tool": e["tool"], "status": e["status"], "category": e["category"],
+                "ms": e["ms"], "at": when,
+            })
+        if e["category"] != "ok" and len(recent_errors) < 25:
+            recent_errors.append({
+                "tool": e["tool"], "category": e["category"], "status": e["status"], "at": when,
+            })
+        if len(recent_jobs) >= 12 and len(recent_errors) >= 25:
+            break
+
     return {
+        "range_days": range_days,
         "totals": totals,
+        "daily": daily,
         "per_tool": per_tool,
-        "daily_trend": daily_trend,
         "hourly": [{"hour": h, "requests": hours[h]} for h in range(24)],
         "errors_by_category": sorted(
             [{"category": c, "count": n} for c, n in errors_by_cat.items()],
             key=lambda x: x["count"], reverse=True,
         ),
+        "recent_jobs": recent_jobs,
         "recent_errors": recent_errors,
     }
