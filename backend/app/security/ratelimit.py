@@ -42,9 +42,12 @@ _limiter = SlidingWindowRateLimiter(
 
 
 def _client_key(request: Request) -> str:
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
+    # Only trust X-Forwarded-For when explicitly configured (i.e. behind a proxy we
+    # control). Otherwise a client could spoof the header to evade the rate limit.
+    if settings.trust_forwarded_for:
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            return xff.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 

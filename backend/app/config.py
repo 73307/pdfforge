@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 30
     rate_limit_window_seconds: int = 60
 
+    # Only honour the X-Forwarded-For header when running behind a proxy you control.
+    # Left off by default so a directly-exposed server can't be tricked into trusting a
+    # spoofed client IP (which would let a caller dodge the rate limit).
+    trust_forwarded_for: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
