@@ -57,6 +57,8 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Hide the Next.js dev-mode "N" indicator (dev only; never shows in production).
+  devIndicators: false,
   // Serve our (small, local) images directly and skip the Next image optimizer, which
   // removes the /_next/image endpoint and its known DoS attack surface on self-hosted apps.
   images: { unoptimized: true },
