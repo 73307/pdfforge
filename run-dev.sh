@@ -52,7 +52,13 @@ if [ ! -f "$ROOT_DIR/backend/.env" ]; then
   cp "$ROOT_DIR/.env.example" "$ROOT_DIR/backend/.env"
 fi
 
+# Enable the admin dashboard locally (dev only). Export your own ADMIN_PASSWORD before
+# running to override. Production sets its own values in docker-compose.prod.yml.
+export ADMIN_USER="${ADMIN_USER:-admin}"
+export ADMIN_PASSWORD="${ADMIN_PASSWORD:-devadmin}"
+
 echo "🚀 Starting PDFForge Backend (http://localhost:8000)..."
+echo "🔐 Admin dashboard: http://localhost:8000/admin  (user: $ADMIN_USER · pass: $ADMIN_PASSWORD)"
 # `exec` replaces the subshell with uvicorn, so $BACKEND_PID is uvicorn itself
 # and the cleanup below can actually stop it (no orphan left holding port 8000).
 (cd "$ROOT_DIR/backend" && exec .venv/bin/uvicorn app.main:app --reload --port 8000) &
