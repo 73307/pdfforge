@@ -71,14 +71,21 @@ def _connect() -> sqlite3.Connection:
                id INTEGER PRIMARY KEY AUTOINCREMENT,
                tool TEXT NOT NULL, category TEXT NOT NULL, status INTEGER NOT NULL,
                ms INTEGER NOT NULL, req_bytes INTEGER NOT NULL, resp_bytes INTEGER NOT NULL,
-               ts INTEGER NOT NULL
+               ts INTEGER NOT NULL, err_code TEXT NOT NULL DEFAULT '', err_msg TEXT NOT NULL DEFAULT ''
            )"""
     )
+    # Migrate older databases that predate the error-reason columns.
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(events)")}
+    if "err_code" not in cols:
+        conn.execute("ALTER TABLE events ADD COLUMN err_code TEXT NOT NULL DEFAULT ''")
+    if "err_msg" not in cols:
+        conn.execute("ALTER TABLE events ADD COLUMN err_msg TEXT NOT NULL DEFAULT ''")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_events_ts ON events(ts)")
     return conn
 
 
-def record(tool: str, status: int, duration_ms: int, req_bytes: int, resp_bytes: int) -> None:
+def record(tool: str, status: int, duration_ms: int, req_bytes: int, resp_bytes: int,
+           err_code: str = "", err_msg: str = "") -> None:
     """Record one tool invocation. Best-effort: never raises."""
     if not settings.metrics_enabled:
         return
@@ -100,8 +107,10 @@ def record(tool: str, status: int, duration_ms: int, req_bytes: int, resp_bytes:
                      1 if ok else 0, 0 if ok else 1, duration_ms, req_bytes, resp_bytes),
                 )
                 conn.execute(
-                    "INSERT INTO events (tool, category, status, ms, req_bytes, resp_bytes, ts) VALUES (?,?,?,?,?,?,?)",
-                    (tool, cat, status, duration_ms, req_bytes, resp_bytes, now),
+                    "INSERT INTO events (tool, category, status, ms, req_bytes, resp_bytes, ts, err_code, err_msg) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
+                    (tool, cat, status, duration_ms, req_bytes, resp_bytes, now,
+                     "" if ok else err_code, "" if ok else err_msg),
                 )
                 conn.execute(
                     "DELETE FROM events WHERE id <= (SELECT MAX(id) FROM events) - ?", (_MAX_EVENTS,)
@@ -130,7 +139,7 @@ def _empty_report(range_days: int) -> dict:
         "totals": {"requests": 0, "successes": 0, "failures": 0, "bytes_in": 0, "bytes_out": 0,
                    "median_ms": 0, "p95_ms": 0, "prev_requests": 0, "prev_successes": 0, "prev_failures": 0},
         "daily": [], "per_tool": [], "hourly": [], "errors_by_category": [],
-        "recent_jobs": [], "recent_errors": [],
+        "errors_by_reason": [], "recent_jobs": [], "recent_errors": [],
     }
 
 
@@ -174,7 +183,8 @@ def report(range_days: int = 7) -> dict:
             ).fetchone()
 
             events = conn.execute(
-                "SELECT tool, category, status, ms, req_bytes, resp_bytes, ts FROM events WHERE ts >= ? ORDER BY ts",
+                "SELECT tool, category, status, ms, req_bytes, resp_bytes, ts, err_code, err_msg "
+                "FROM events WHERE ts >= ? ORDER BY ts",
                 (start_ts,),
             ).fetchall()
         finally:
@@ -216,6 +226,7 @@ def report(range_days: int = 7) -> dict:
     ms_by, in_by, out_by = {}, {}, {}
     hours = [0] * 24
     errors_by_cat = {}
+    reasons: dict = {}  # human error message -> {count, tools, category}
     for e in events:
         ms_by.setdefault(e["tool"], []).append(e["ms"])
         in_by.setdefault(e["tool"], []).append(e["req_bytes"])
@@ -223,6 +234,10 @@ def report(range_days: int = 7) -> dict:
         hours[datetime.fromtimestamp(e["ts"], timezone.utc).hour] += 1
         if e["category"] != "ok":
             errors_by_cat[e["category"]] = errors_by_cat.get(e["category"], 0) + 1
+            key = (e["err_msg"] or "").strip() or e["category"]
+            r = reasons.setdefault(key, {"reason": key, "count": 0, "tools": set(), "category": e["category"]})
+            r["count"] += 1
+            r["tools"].add(e["tool"])
 
     per_tool = []
     for tool, c in sorted(per_tool_counts.items(), key=lambda kv: kv[1]["requests"] or 0, reverse=True):
@@ -247,6 +262,7 @@ def report(range_days: int = 7) -> dict:
         if e["category"] != "ok" and len(recent_errors) < 25:
             recent_errors.append({
                 "tool": e["tool"], "category": e["category"], "status": e["status"], "at": when,
+                "reason": (e["err_msg"] or "").strip() or e["category"],
             })
         if len(recent_jobs) >= 12 and len(recent_errors) >= 25:
             break
@@ -259,6 +275,11 @@ def report(range_days: int = 7) -> dict:
         "hourly": [{"hour": h, "requests": hours[h]} for h in range(24)],
         "errors_by_category": sorted(
             [{"category": c, "count": n} for c, n in errors_by_cat.items()],
+            key=lambda x: x["count"], reverse=True,
+        ),
+        "errors_by_reason": sorted(
+            [{"reason": r["reason"], "count": r["count"], "category": r["category"],
+              "tools": ", ".join(sorted(r["tools"]))} for r in reasons.values()],
             key=lambda x: x["count"], reverse=True,
         ),
         "recent_jobs": recent_jobs,

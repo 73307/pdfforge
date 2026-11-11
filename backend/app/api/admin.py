@@ -448,6 +448,18 @@ def _page_errors(rep: dict) -> str:
     if not al:
         al = '<div class="banner ok"><span class="b-ic">✓</span><span><b>All clear.</b> No active alerts.</span></div>'
 
+    # Why errors happen — grouped by the exact message users receive (the actionable view)
+    reasons = rep["errors_by_reason"]
+    max_r = max([r["count"] for r in reasons] + [1])
+    rrows = ""
+    for r in reasons:
+        rrows += (f'<tr><td class="reason">{html.escape(r["reason"])}</td>'
+                  f'<td class="when">{html.escape(r["tools"])}</td>'
+                  f'<td class="barcell">{_bar(r["count"], max_r, "#dc2626")}</td>'
+                  f'<td class="num">{r["count"]}</td></tr>')
+    if not rrows:
+        rrows = '<tr><td colspan="4" class="empty">No errors recorded. 🎉</td></tr>'
+
     max_ec = max([c["count"] for c in rep["errors_by_category"]] + [1])
     ecat = ""
     for c in rep["errors_by_category"]:
@@ -458,18 +470,22 @@ def _page_errors(rep: dict) -> str:
     er = ""
     for e in rep["recent_errors"]:
         er += (f'<tr><td class="tool">{html.escape(e["tool"])}</td>'
-               f'<td><span class="tag">{html.escape(e["category"])}</span></td>'
+               f'<td class="reason">{html.escape(e.get("reason", e["category"]))}</td>'
                f'<td class="num">{e["status"]}</td>'
                f'<td class="when">{html.escape(e["at"].replace("T", " ").replace("+00:00", " UTC"))}</td></tr>')
     if not er:
         er = '<tr><td colspan="4" class="empty">No errors recorded. 🎉</td></tr>'
 
     return f"""{al}
+    <div class="panel">
+      <div class="p-h"><h3>Why errors happen</h3><span class="muted small">the exact message users get — grouped so you can fix the cause</span></div>
+      <table><tr><th>Reason</th><th>Tool(s)</th><th></th><th class="num">Count</th></tr>{rrows}</table>
+    </div>
     <div class="grid2">
-      <div class="panel"><div class="p-h"><h3>Error breakdown</h3></div>
+      <div class="panel"><div class="p-h"><h3>Error categories</h3></div>
         <table><tr><th>Type</th><th></th><th class="num">Count</th></tr>{ecat}</table></div>
       <div class="panel"><div class="p-h"><h3>Recent errors</h3></div>
-        <table class="jobs"><tr><th>Tool</th><th>Type</th><th class="num">Status</th><th>When</th></tr>{er}</table></div>
+        <table class="jobs"><tr><th>Tool</th><th>Reason</th><th class="num">Status</th><th>When</th></tr>{er}</table></div>
     </div>"""
 
 
@@ -635,6 +651,7 @@ _CSS = """
   th { color:#8aa39d; font-size:11px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
   td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; }
   td.tool { font-weight:600; } td.when { color:#8aa39d; font-size:12px; }
+  td.reason { font-weight:500; max-width:420px; }
   .empty { text-align:center; color:#8aa39d; padding:20px; }
   .badge { font-size:12px; font-weight:600; border-radius:999px; padding:2px 9px; }
   .badge.ok { background:#e5f5ec; color:#15834f; } .badge.fail { background:#fdeceb; color:#c23b28; } .badge.warn { background:#fdf2e3; color:#b4720c; }
