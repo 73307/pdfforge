@@ -61,7 +61,10 @@ echo "🚀 Starting PDFForge Backend (http://localhost:8000)..."
 echo "🔐 Admin dashboard: http://localhost:8000/admin  (user: $ADMIN_USER · pass: $ADMIN_PASSWORD)"
 # `exec` replaces the subshell with uvicorn, so $BACKEND_PID is uvicorn itself
 # and the cleanup below can actually stop it (no orphan left holding port 8000).
-(cd "$ROOT_DIR/backend" && exec .venv/bin/uvicorn app.main:app --reload --port 8000) &
+# Watch ONLY the app/ source for reloads. Without --reload-dir, uvicorn watches the whole
+# backend folder and every metrics-DB write under .data/ would trigger a reload, dropping
+# in-flight API requests.
+(cd "$ROOT_DIR/backend" && exec .venv/bin/uvicorn app.main:app --reload --reload-dir app --port 8000) &
 BACKEND_PID=$!
 
 cleanup() {
