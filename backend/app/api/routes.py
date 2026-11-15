@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
+from app import feedback
 from app.config import settings
 from app.core.errors import ProcessingError, ValidationAppError
 from app.core.pages import parse_pages, parse_ranges
@@ -323,3 +324,15 @@ async def remove_background_endpoint(
     except Exception:
         storage.cleanup(workdir)
         raise
+
+
+@router.post("/feedback")
+async def submit_feedback(
+    rating: int = Form(...),
+    message: str = Form(""),
+    tool: str = Form(""),
+):
+    if not (1 <= rating <= 5):
+        raise ValidationAppError("Rating must be between 1 and 5.")
+    feedback.record(rating, message.strip()[:1000], tool.strip()[:40])
+    return {"ok": True}

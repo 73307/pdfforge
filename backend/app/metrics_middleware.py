@@ -22,7 +22,9 @@ class MetricsMiddleware:
 
     async def __call__(self, scope, receive, send):
         path = scope.get("path", "")
-        if scope["type"] != "http" or not settings.metrics_enabled or not path.startswith(_PREFIX):
+        # Skip non-tool API routes (e.g. feedback) so they don't pollute tool stats.
+        if (scope["type"] != "http" or not settings.metrics_enabled
+                or not path.startswith(_PREFIX) or path == "/api/feedback"):
             await self.app(scope, receive, send)
             return
 

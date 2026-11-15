@@ -231,6 +231,23 @@ export const Swap = (p: SvgProps) => (
   </Svg>
 );
 
+export const Star = ({ filled, className }: { filled?: boolean; className?: string }) => (
+  <svg
+    className={className}
+    width={24}
+    height={24}
+    viewBox="0 0 24 24"
+    fill={filled ? "currentColor" : "none"}
+    stroke="currentColor"
+    strokeWidth={1.6}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 18.9l-5.9 2.7 1.2-6.5L2.5 9.5l6.6-.9z" />
+  </svg>
+);
+
 export const Spinner = ({ className }: { className?: string }) => (
   <svg
     className={`animate-spin ${className ?? ""}`}

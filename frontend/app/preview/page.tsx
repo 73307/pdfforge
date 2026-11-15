@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getResult, subscribe, type ToolResult } from "@/lib/resultStore";
 import { triggerDownload } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
-import { Download, Check } from "@/components/icons";
+import { Download, Check, Star } from "@/components/icons";
 
 export default function PreviewPage() {
   const [result, setResult] = React.useState<ToolResult | null>(() => getResult());
@@ -95,6 +95,15 @@ export default function PreviewPage() {
           Do another
         </Link>
       </div>
+
+      {/* Feedback prompt */}
+      <Link
+        href={`/feedback?tool=${encodeURIComponent(result.toolName)}`}
+        className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[var(--muted)] transition hover:text-brand-600"
+      >
+        <Star className="h-4 w-4 text-amber-400" />
+        Happy with the result? Rate your experience →
+      </Link>
 
       {/* Preview */}
       <div className="mt-6 overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-card">

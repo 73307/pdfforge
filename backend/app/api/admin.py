@@ -25,7 +25,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 
-from app import metrics, system_status
+from app import feedback, metrics, system_status
 from app.config import settings
 from app.security.ratelimit import rate_limit
 
@@ -122,6 +122,15 @@ def admin_system(request: Request):
         return blocked
     rng = _range(request)
     return HTMLResponse(_shell("system", "System", rng, _page_system(system_status.status())))
+
+
+@router.get("/admin/feedback", response_class=HTMLResponse)
+def admin_feedback(request: Request):
+    blocked = _guard(request)
+    if blocked:
+        return blocked
+    rng = _range(request)
+    return HTMLResponse(_shell("feedback", "Feedback", rng, _page_feedback(feedback.summary())))
 
 
 @router.get("/admin/export.csv", response_class=PlainTextResponse)
@@ -520,10 +529,52 @@ def _page_system(sysd: dict) -> str:
     </div>"""
 
 
+def _stars_html(n: int, color: str = "#f59e0b") -> str:
+    n = max(0, min(5, round(n)))
+    return f'<span style="color:{color};letter-spacing:2px">{"★" * n}{"☆" * (5 - n)}</span>'
+
+
+def _page_feedback(fb: dict) -> str:
+    count, avg, dist = fb["count"], fb["avg"], fb["dist"]  # dist[0] = 1-star count
+    maxd = max(dist + [1])
+    dist_rows = ""
+    for s in (5, 4, 3, 2, 1):
+        c = dist[s - 1]
+        dist_rows += (f'<tr><td class="num" style="width:46px;color:#f59e0b;font-weight:700">{s} ★</td>'
+                      f'<td class="barcell">{_bar(c, maxd, "#f59e0b")}</td>'
+                      f'<td class="num">{c}</td></tr>')
+
+    items = ""
+    for r in fb["recent"]:
+        msg = html.escape(r["message"]) if r["message"] else '<span class="muted">(rating only — no comment)</span>'
+        tool = f' · {html.escape(r["tool"])}' if r["tool"] else ""
+        when = html.escape(r["at"].replace("T", " ").replace("+00:00", " UTC"))
+        items += (f'<div class="fb-item"><div class="fb-h">{_stars_html(r["rating"])}'
+                  f'<span class="when">{when}{tool}</span></div>'
+                  f'<div class="fb-msg">{msg}</div></div>')
+    if not items:
+        items = '<div class="empty" style="padding:28px">No feedback yet. It will appear here as users rate the tools.</div>'
+
+    return f"""
+    <div class="cards">
+      <div class="card"><div class="k">Average rating</div>
+        <div class="v">{avg or 0} <span style="font-size:17px">{_stars_html(avg)}</span></div>
+        <div class="mini">out of 5</div></div>
+      <div class="card"><div class="k">Responses</div><div class="v">{count}</div></div>
+      <div class="card"><div class="k">With a comment</div><div class="v">{fb["with_comment"]}</div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><div class="p-h"><h3>Rating distribution</h3></div>
+        <table>{dist_rows}</table></div>
+      <div class="panel"><div class="p-h"><h3>Recent feedback</h3></div>{items}</div>
+    </div>"""
+
+
 # --------------------------------------------------------------------------- shell + login
 def _nav(active: str, rng: int) -> str:
     items = [("overview", "Overview", "/admin"), ("tools", "Tool performance", "/admin/tools"),
-             ("errors", "Errors & alerts", "/admin/errors"), ("system", "System", "/admin/system")]
+             ("errors", "Errors & alerts", "/admin/errors"), ("feedback", "Feedback", "/admin/feedback"),
+             ("system", "System", "/admin/system")]
     out = ""
     for key, label, href in items:
         cls = "nav-i active" if key == active else "nav-i"
@@ -532,7 +583,8 @@ def _nav(active: str, rng: int) -> str:
 
 
 def _range_selector(active: str, rng: int) -> str:
-    base = {"overview": "/admin", "tools": "/admin/tools", "errors": "/admin/errors", "system": "/admin/system"}[active]
+    base = {"overview": "/admin", "tools": "/admin/tools", "errors": "/admin/errors",
+            "feedback": "/admin/feedback", "system": "/admin/system"}[active]
     out = ""
     for r in _RANGES:
         cls = "rg active" if r == rng else "rg"
@@ -672,5 +724,8 @@ _CSS = """
   .tcol { flex:1; text-align:center; } .tbar { height:84px; display:flex; align-items:flex-end; }
   .tbar span { display:block; width:100%; background:#15a46a; border-radius:4px 4px 0 0; } .hlabel { color:#8aa39d; font-size:9px; margin-top:4px; }
   .jobs td.tool { font-weight:600; }
+  .fb-item { padding:12px 0; border-bottom:1px solid #eef3f2; } .fb-item:last-child { border-bottom:0; }
+  .fb-h { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .fb-msg { margin-top:4px; color:#0f1f1d; font-size:14px; }
   @media (max-width:860px) { .side { display:none; } .grid2 { grid-template-columns:1fr; } }
 """

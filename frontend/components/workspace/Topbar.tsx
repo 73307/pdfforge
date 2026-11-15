@@ -15,6 +15,7 @@ function pageLabel(pathname: string): string {
   if (pathname === "/privacy") return "Privacy";
   if (pathname === "/terms") return "Terms";
   if (pathname === "/preview") return "Result";
+  if (pathname === "/feedback") return "Rate us";
   const tool = getTool(pathname.replace(/^\//, ""));
   return tool ? tool.name : "Not found";
 }

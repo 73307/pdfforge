@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "./BrandMark";
 import { NavLinks } from "./NavLinks";
-import { Help } from "@/components/icons";
+import { Help, Star } from "@/components/icons";
 
 export function Sidebar() {
   return (
@@ -19,6 +19,13 @@ export function Sidebar() {
       <NavLinks />
 
       <div className="mt-auto border-t border-[var(--sidebar-line)] pt-4">
+        <Link
+          href="/feedback"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--sidebar-ink)] transition hover:bg-[var(--sidebar-2)] hover:text-white"
+        >
+          <Star className="h-[18px] w-[18px] text-amber-400" />
+          <span className="text-sm font-medium">Rate us</span>
+        </Link>
         <Link
           href="/privacy"
           className="flex items-start gap-3 rounded-xl px-3 py-2.5 text-[var(--sidebar-ink)] transition hover:bg-[var(--sidebar-2)] hover:text-white"
